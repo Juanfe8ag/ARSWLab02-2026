@@ -5,6 +5,8 @@
  */
 package edu.eci.arsw.primefinder;
 
+import java.io.IOException;
+
 /**
  *
  */
@@ -34,10 +36,33 @@ public class Control extends Thread {
         return new Control();
     }
 
+    public void stopThreads() throws IOException {
+        int totalPrimes = 0;
+        for(int i = 0;i < NTHREADS;i++ ) {
+            try {
+                pft[i].wait();
+            }catch(InterruptedException e){
+                e.getStackTrace();
+            }
+        }
+
+        for(int i = 0;i < NTHREADS;i++){
+            totalPrimes += pft[i].getSize();
+        }
+        System.out.println("El número de primos encontrados es de " + totalPrimes);
+        System.out.println("Presiona ENTER para continuar la busqueda.");
+        System.in.read();
+    }
     @Override
     public void run() {
         for(int i = 0;i < NTHREADS;i++ ) {
             pft[i].start();
+        }
+
+        try {
+            stopThreads();
+        }catch(IOException e){
+            e.getStackTrace();
         }
     }
     
