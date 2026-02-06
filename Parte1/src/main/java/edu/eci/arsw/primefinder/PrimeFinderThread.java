@@ -9,22 +9,35 @@ public class PrimeFinderThread extends Thread{
 	int a,b;
 	
 	private List<Integer> primes;
+
+    public ControlLock lock;
 	
-	public PrimeFinderThread(int a, int b) {
+	public PrimeFinderThread(int a, int b, ControlLock lock) {
 		super();
                 this.primes = new LinkedList<>();
 		this.a = a;
 		this.b = b;
+        this.lock = lock;
 	}
 
         @Override
 	public void run(){
-            for (int i= a;i < b;i++){						
-                if (isPrime(i)){
-                    primes.add(i);
-                    System.out.println(i);
+        for (int i= a;i < b;i++){
+            synchronized (lock) {
+                while (lock.isPaused()) {
+                    try {
+                        lock.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        return;
+                    }
                 }
             }
+            if (isPrime(i)){
+                primes.add(i);
+                System.out.println(i);
+            }
+        }
 	}
 	
 	boolean isPrime(int n) {

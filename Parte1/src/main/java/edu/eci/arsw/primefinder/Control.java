@@ -15,6 +15,7 @@ public class Control extends Thread {
     private final static int NTHREADS = 3;
     private final static int MAXVALUE = 30000000;
     private final static int TMILISECONDS = 5000;
+    public final ControlLock lock =  new ControlLock();
 
     private final int NDATA = MAXVALUE / NTHREADS;
 
@@ -26,43 +27,63 @@ public class Control extends Thread {
 
         int i;
         for(i = 0;i < NTHREADS - 1; i++) {
-            PrimeFinderThread elem = new PrimeFinderThread(i*NDATA, (i+1)*NDATA);
+            PrimeFinderThread elem = new PrimeFinderThread(i*NDATA, (i+1)*NDATA, lock);
             pft[i] = elem;
         }
-        pft[i] = new PrimeFinderThread(i*NDATA, MAXVALUE + 1);
+        pft[i] = new PrimeFinderThread(i*NDATA, MAXVALUE + 1, lock);
     }
     
     public static Control newControl() {
         return new Control();
     }
 
-    public void stopThreads() throws IOException {
+    public void countPrimes() {
         int totalPrimes = 0;
-        for(int i = 0;i < NTHREADS;i++ ) {
-            try {
-                pft[i].wait();
-            }catch(InterruptedException e){
-                e.getStackTrace();
-            }
-        }
-
         for(int i = 0;i < NTHREADS;i++){
             totalPrimes += pft[i].getSize();
         }
         System.out.println("El número de primos encontrados es de " + totalPrimes);
         System.out.println("Presiona ENTER para continuar la busqueda.");
-        System.in.read();
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
+
+    public boolean areAlive(){
+        for (int i = 0;i < NTHREADS;i++){
+            if (pft[i].isAlive()){
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void run() {
         for(int i = 0;i < NTHREADS;i++ ) {
             pft[i].start();
         }
+        try{
+            while (areAlive()) {
+                Thread.sleep(TMILISECONDS);
 
-        try {
-            stopThreads();
-        }catch(IOException e){
-            e.getStackTrace();
+                synchronized (lock) {
+                    lock.pause();
+                }
+
+                countPrimes();
+
+                synchronized (lock) {
+                    lock.resume();
+                    lock.notifyAll();
+                }
+            }
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
     
