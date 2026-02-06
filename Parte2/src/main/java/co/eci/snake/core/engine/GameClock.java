@@ -1,5 +1,6 @@
 package co.eci.snake.core.engine;
 
+import co.eci.snake.concurrency.SnakeControl;
 import co.eci.snake.core.GameState;
 
 import java.util.Objects;
@@ -13,11 +14,13 @@ public final class GameClock implements AutoCloseable {
   private final long periodMillis;
   private final Runnable tick;
   private final java.util.concurrent.atomic.AtomicReference<GameState> state = new AtomicReference<>(GameState.STOPPED);
+  private final SnakeControl clock;
 
-  public GameClock(long periodMillis, Runnable tick) {
+  public GameClock(long periodMillis, Runnable tick, SnakeControl clock) {
     if (periodMillis <= 0) throw new IllegalArgumentException("periodMillis must be > 0");
     this.periodMillis = periodMillis;
     this.tick = java.util.Objects.requireNonNull(tick, "tick");
+    this.clock = clock;
   }
 
   public void start() {
@@ -28,8 +31,14 @@ public final class GameClock implements AutoCloseable {
     }
   }
 
-  public void pause()  { state.set(GameState.PAUSED); }
-  public void resume() { state.set(GameState.RUNNING); }
+  public void pause()  {
+    state.set(GameState.PAUSED);
+    clock.pause();
+  }
+  public void resume() {
+    state.set(GameState.RUNNING);
+    clock.resume();
+  }
   public void stop()   { state.set(GameState.STOPPED); }
   @Override public void close() { scheduler.shutdownNow(); }
 }

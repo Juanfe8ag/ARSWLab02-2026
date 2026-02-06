@@ -1,5 +1,6 @@
 package co.eci.snake.ui.legacy;
 
+import co.eci.snake.concurrency.SnakeControl;
 import co.eci.snake.concurrency.SnakeRunner;
 import co.eci.snake.core.Board;
 import co.eci.snake.core.Direction;
@@ -20,6 +21,7 @@ public final class SnakeApp extends JFrame {
   private final GamePanel gamePanel;
   private final JButton actionButton;
   private final GameClock clock;
+  private volatile boolean paused = false;
   private final java.util.List<Snake> snakes = new java.util.ArrayList<>();
 
   public SnakeApp() {
@@ -35,7 +37,7 @@ public final class SnakeApp extends JFrame {
     }
 
     this.gamePanel = new GamePanel(board, () -> snakes);
-    this.actionButton = new JButton("Action");
+    this.actionButton = new JButton("Pause");
 
     setLayout(new BorderLayout());
     add(gamePanel, BorderLayout.CENTER);
@@ -45,10 +47,12 @@ public final class SnakeApp extends JFrame {
     pack();
     setLocationRelativeTo(null);
 
-    this.clock = new GameClock(60, () -> SwingUtilities.invokeLater(gamePanel::repaint));
+    SnakeControl pauseSnake = new SnakeControl();
+
+    this.clock = new GameClock(60, () -> SwingUtilities.invokeLater(gamePanel::repaint), pauseSnake);
 
     var exec = Executors.newVirtualThreadPerTaskExecutor();
-    snakes.forEach(s -> exec.submit(new SnakeRunner(s, board)));
+    snakes.forEach(s -> exec.submit(new SnakeRunner(s, board, pauseSnake)));
 
     actionButton.addActionListener((ActionEvent e) -> togglePause());
 
@@ -129,14 +133,51 @@ public final class SnakeApp extends JFrame {
   }
 
   private void togglePause() {
-    if ("Action".equals(actionButton.getText())) {
+    paused = !paused;
+
+    if (paused) {
       actionButton.setText("Resume");
       clock.pause();
+      showStats();
     } else {
-      actionButton.setText("Action");
+      actionButton.setText("Pause");
       clock.resume();
     }
   }
+
+  private void showStats() {
+    if (!paused) return;
+
+    Snake longest = null;
+    Snake shortest = null;
+
+    for (Snake s : snakes) {
+      if (longest == null || s.snapshot().size() > longest.snapshot().size()) {
+        longest = s;
+      }
+      if (shortest == null || s.snapshot().size() < shortest.snapshot().size()) {
+        shortest = s;
+      }
+    }
+
+    String msg = String.format(
+            "Juego en pausa\n\n" +
+                    "Serpientes: %d\n" +
+                    "Más larga: %d\n" +
+                    "Más corta: %d",
+            snakes.size(),
+            longest.snapshot().size(),
+            shortest.snapshot().size()
+    );
+
+    JOptionPane.showMessageDialog(
+            this,
+            msg,
+            "Estadísticas",
+            JOptionPane.INFORMATION_MESSAGE
+    );
+  }
+
 
   public static final class GamePanel extends JPanel {
     private final Board board;
